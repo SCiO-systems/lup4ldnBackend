@@ -639,7 +639,7 @@ def calculateScenario():
 
     # In[67]:
 
-    per_class_sum = list(np.sum(final_array, axis=1))
+    per_class_sum = list(np.sum(final_array, axis=0))
     per_class_sum = [int(x) for x in per_class_sum]
     total_sum = int(np.sum(final_array))
     my_json = {
@@ -862,7 +862,7 @@ def calculateSOCScenario():
         lc_changes_array = np.asarray(lc_changes_array)
 
         final_array = lc_changes_array * mask_array
-        per_class_sum = list(np.sum(final_array, axis=1))
+        per_class_sum = list(np.sum(final_array, axis=0))
         per_class_sum = [int(x) for x in per_class_sum]
         total_sum = int(np.sum(final_array))
 
@@ -898,5 +898,6 @@ def bilinear_resize_tif_dimensions_to_ref_tif(input_tif, output_tif_path, ref_he
     exit_code = os.system(
         "gdalwarp -ts " + str(ref_height) + " " + str(ref_width) + " -r near " + input_tif + " " + output_tif_path)
     return exit_code
+
 
 app.run(host='0.0.0.0',ssl_context=('cert.pem', 'key.pem'))
