@@ -752,12 +752,151 @@ def calculateScenario():
     my_json["final_lc_per_class"] = lc_list
 '''
 
+@app.route('/calculateSOCScenario', methods=['GET'])
+def calculateSOCScenario():
+    if 'identifier' in request.args:
+        identifier = request.args['identifier']
+    else:
+        return "Error: No identifier field provided. Please specify a identifier."
+
+    if 'socscenario' in request.args:
+        scenario = request.args['socscenario']
+        my_json = json.loads(scenario)
+        scenario = './data/scenario/' + identifier + '_soc_.json'
+        with open(scenario, 'w') as f:
+            json.dump(my_json, f)
+    else:
+        return "Error: No geojson field provided. Please specify a geojson."
+
+    with open(scenario) as json_file:
+        data = json.load(json_file)
+
+    lc_changes_scenario = data["scenarios"]
+    impact_matrix = data["impactMatrix"]
+    soc_matrix = data["comatrix"]
+
+    # In[30]:
+
+    land_ids = ['treecovered', 'grassland', 'cropland', 'wetland', 'artificialarea', 'bareland', 'waterbody']
+    lc_changes_row_format = {
+        "treecovered": 0,
+        "grassland": 0,
+        "cropland": 0,
+        "wetland": 0,
+        "artificialarea": 0,
+        "bareland": 0,
+        "waterbody": 0
+    }
+
+    scenario_json = {
+        "impacts": None,
+        "total_impact_sum": None,
+        "total_final_lc": None,
+        "final_lc_per_class": None,
+        "scenarioStart": None,
+        "scenarioEnd": None
+    }
+
+    lc_per_class = {
+        "landId": None,
+        "landCoverage": {
+            "value": None,
+            "unit": "ha"
+        }
+    }
+
+    impacts_per_class = {
+        "landId": None,
+        "impact": {
+            "value": None,
+            "unit": "ha"
+        }
+    }
+
+    my_json = {
+        "scenarios": None
+    }
+
+    # In[42]:
+
+    impact_array = []
+    for item in impact_matrix:
+        impact_array.append(item["values"])
+
+    impact_array = np.asarray(impact_array)
+    adjusted_impact_array = np.where(impact_array < 0, 0, 1)
+
+    # In[33]:
+
+    soc_array = []
+    for item in soc_matrix:
+        soc_array.append(item["values"])
+
+    soc_array = np.asarray(soc_array)
+
+    scenarios_impact_list = []
+    duration_scernario = data["totalYears"]
+    adjusted_soc_array = duration_scernario * (soc_array - 1) / 20 + 1
+    adjusted_soc_array = np.where(adjusted_soc_array < 0.9, -2, 0)
+
+    combined_array = adjusted_impact_array * adjusted_soc_array
+    mask_array = np.sign(combined_array + impact_array)
+
+    for scenario in lc_changes_scenario:
+
+        initial_lc_hectares_per_class = []
+        final_lc_hectares_per_class = []
+        lc_changes_array = []
+        for source_lc_class in scenario["landTypes"]:
+            # save initial total hectares per class to a list
+            initial_lc_hectares_per_class.append(source_lc_class["landCoverage"]["value"])
+            # save final total hectares per class to a list
+            final_lc_hectares_per_class.append(source_lc_class["endLandCoverage"]["value"])
+
+            lc_changes_row = copy.copy(lc_changes_row_format)
+            for lc_changes_data in source_lc_class["breakDown"]:
+                lc_changes_row[lc_changes_data["landId"]] = lc_changes_data["landCoverage"]["value"]
+
+            lc_changes_array.append(list(lc_changes_row.values()))
+
+        lc_changes_array = np.asarray(lc_changes_array)
+
+        final_array = lc_changes_array * mask_array
+        per_class_sum = list(np.sum(final_array, axis=1))
+        per_class_sum = [int(x) for x in per_class_sum]
+        total_sum = int(np.sum(final_array))
+
+        impacts_list = []
+        lc_list = []
+        for idx, lc_class in enumerate(land_ids):
+            impacts_per_class["landId"] = lc_class
+            impacts_per_class["impact"] = per_class_sum[idx]
+
+            impacts_list.append(copy.deepcopy(impacts_per_class))
+
+            lc_per_class["landId"] = lc_class
+            lc_per_class["landCoverage"] = final_lc_hectares_per_class[idx]
+
+            lc_list.append(copy.deepcopy(lc_per_class))
+
+        scenario_json["impacts"] = impacts_list
+        scenario_json["final_lc_per_class"] = lc_list
+        scenario_json["total_impact_sum"] = total_sum
+        scenario_json["total_final_lc"] = sum(final_lc_hectares_per_class)
+        scenario_json["scenarioStart"] = scenario["scenarioStart"]
+        scenario_json["scenarioEnd"] = scenario["scenarioEnd"]
+
+        scenarios_impact_list.append(copy.deepcopy(scenario_json))
+
+    my_json["scenarios"] = scenarios_impact_list
+
+    return my_json
+
 
 
 def bilinear_resize_tif_dimensions_to_ref_tif(input_tif, output_tif_path, ref_height, ref_width):
     exit_code = os.system(
         "gdalwarp -ts " + str(ref_height) + " " + str(ref_width) + " -r near " + input_tif + " " + output_tif_path)
     return exit_code
-
 
 app.run(host='0.0.0.0',ssl_context=('cert.pem', 'key.pem'))
