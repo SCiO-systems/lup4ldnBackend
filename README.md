@@ -21,7 +21,7 @@ LUP4LDN Backend is developed on:
 
 [GDAL](https://gdal.org/)
 
-and deployed through [Flask](https://flask.palletsprojects.com/en/1.1.x/)
+and served through [Flask](https://flask.palletsprojects.com/en/1.1.x/) webserver
 
 
 
