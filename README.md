@@ -15,3 +15,13 @@ Furthermore, the backend establishes the integration mechanisms with the differe
 
 ## Technologies
 
+LUP4LDN Backend is developed on: 
+
+[Python 3.7](https://www.python.org/downloads/release/python-370/)
+
+[GDAL](https://gdal.org/)
+
+and deployed through [Flask](https://flask.palletsprojects.com/en/1.1.x/)
+
+
+
